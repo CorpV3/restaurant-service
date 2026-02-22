@@ -18,7 +18,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY shared/ /app/shared/
 
 # Copy service code
-COPY services/restaurant-service/app /app/app
+COPY app/ /app/app/
 
 # Expose port
 EXPOSE 8003
