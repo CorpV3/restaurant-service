@@ -1,18 +1,24 @@
 """
 Database configuration for Restaurant Service
 """
+import re
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from shared.config.settings import settings
 
+# Build asyncpg-compatible URL (strip sslmode which asyncpg doesn't support as URL param)
+_db_url = settings.database_url.replace("postgresql://", "postgresql+asyncpg://")
+_db_url = re.sub(r'[?&]sslmode=[^&]*', '', _db_url).rstrip('?')
+
 # Create async engine
 engine = create_async_engine(
-    settings.database_url.replace("postgresql://", "postgresql+asyncpg://"),
+    _db_url,
     echo=True if settings.environment == "development" else False,
     future=True,
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20,
+    connect_args={"ssl": False},
 )
 
 # Create async session factory
