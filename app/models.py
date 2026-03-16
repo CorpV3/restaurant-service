@@ -54,6 +54,14 @@ class Restaurant(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     max_tables = Column(Integer, default=10, nullable=False)
 
+    # Delivery Integrations
+    uber_enabled = Column(Boolean, default=False, nullable=False)
+    uber_store_id = Column(String(255), nullable=True)
+    justeat_enabled = Column(Boolean, default=False, nullable=False)
+    justeat_restaurant_id = Column(String(255), nullable=True)
+    deliveroo_enabled = Column(Boolean, default=False, nullable=False)
+    deliveroo_restaurant_id = Column(String(255), nullable=True)
+
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

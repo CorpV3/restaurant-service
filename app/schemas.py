@@ -49,6 +49,12 @@ class RestaurantUpdate(BaseModel):
     per_table_booking_fee: Optional[float] = Field(None, ge=0)
     per_online_booking_fee: Optional[float] = Field(None, ge=0)
     enable_booking_fees: Optional[bool] = None
+    uber_enabled: Optional[bool] = None
+    uber_store_id: Optional[str] = Field(None, max_length=255)
+    justeat_enabled: Optional[bool] = None
+    justeat_restaurant_id: Optional[str] = Field(None, max_length=255)
+    deliveroo_enabled: Optional[bool] = None
+    deliveroo_restaurant_id: Optional[str] = Field(None, max_length=255)
 
 
 class RestaurantBranding(BaseModel):
@@ -77,6 +83,12 @@ class RestaurantResponse(RestaurantBase):
     per_table_booking_fee: float
     per_online_booking_fee: float
     enable_booking_fees: bool
+    uber_enabled: bool = False
+    uber_store_id: Optional[str] = None
+    justeat_enabled: bool = False
+    justeat_restaurant_id: Optional[str] = None
+    deliveroo_enabled: bool = False
+    deliveroo_restaurant_id: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
