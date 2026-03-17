@@ -55,6 +55,17 @@ class RestaurantUpdate(BaseModel):
     justeat_restaurant_id: Optional[str] = Field(None, max_length=255)
     deliveroo_enabled: Optional[bool] = None
     deliveroo_restaurant_id: Optional[str] = Field(None, max_length=255)
+    tripos_enabled: Optional[bool] = None
+    tripos_acceptor_id: Optional[str] = Field(None, max_length=255)
+    tripos_account_id: Optional[str] = Field(None, max_length=255)
+    tripos_account_token: Optional[str] = Field(None, max_length=500)
+    tripos_application_id: Optional[str] = Field(None, max_length=255)
+    tripos_lane_id: Optional[int] = None
+    tripos_environment: Optional[str] = Field(None, pattern='^(cert|prod)$')
+    stripe_enabled: Optional[bool] = None
+    stripe_secret_key: Optional[str] = Field(None, max_length=500)
+    sumup_enabled: Optional[bool] = None
+    sumup_api_key: Optional[str] = Field(None, max_length=500)
 
 
 class RestaurantBranding(BaseModel):
@@ -89,6 +100,17 @@ class RestaurantResponse(RestaurantBase):
     justeat_restaurant_id: Optional[str] = None
     deliveroo_enabled: bool = False
     deliveroo_restaurant_id: Optional[str] = None
+    tripos_enabled: bool = False
+    tripos_acceptor_id: Optional[str] = None
+    tripos_account_id: Optional[str] = None
+    tripos_account_token: Optional[str] = None
+    tripos_application_id: Optional[str] = None
+    tripos_lane_id: Optional[int] = None
+    tripos_environment: Optional[str] = None
+    stripe_enabled: bool = False
+    stripe_secret_key: Optional[str] = None
+    sumup_enabled: bool = False
+    sumup_api_key: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

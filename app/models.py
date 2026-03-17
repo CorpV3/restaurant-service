@@ -62,6 +62,19 @@ class Restaurant(Base):
     deliveroo_enabled = Column(Boolean, default=False, nullable=False)
     deliveroo_restaurant_id = Column(String(255), nullable=True)
 
+    # Payment Integrations
+    tripos_enabled = Column(Boolean, default=False, nullable=False)
+    tripos_acceptor_id = Column(String(255), nullable=True)
+    tripos_account_id = Column(String(255), nullable=True)
+    tripos_account_token = Column(String(500), nullable=True)
+    tripos_application_id = Column(String(255), nullable=True)
+    tripos_lane_id = Column(Integer, nullable=True)
+    tripos_environment = Column(String(10), default='cert', nullable=True)
+    stripe_enabled = Column(Boolean, default=False, nullable=False)
+    stripe_secret_key = Column(String(500), nullable=True)
+    sumup_enabled = Column(Boolean, default=False, nullable=False)
+    sumup_api_key = Column(String(500), nullable=True)
+
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
