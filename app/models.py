@@ -2,12 +2,45 @@
 Database models for Restaurant Service
 """
 from datetime import datetime
+import enum
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Float, Text, ForeignKey, Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 import uuid
 from shared.models.enums import MenuItemCategory, TableStatus, SubscriptionStatus, PricingPlan, OrderStatus
 from .database import Base
+
+
+class InventoryCategory(str, enum.Enum):
+    MEAT = "meat"
+    VEGETABLES = "vegetables"
+    DAIRY = "dairy"
+    BAKERY = "bakery"
+    SPICES = "spices"
+    BEVERAGES = "beverages"
+    SEAFOOD = "seafood"
+    FROZEN = "frozen"
+    OTHER = "other"
+
+
+class PreparedFoodStatus(str, enum.Enum):
+    ACTIVE = "active"
+    OFFER = "offer"
+    EXPIRED = "expired"
+    CONSUMED = "consumed"
+
+
+class MovementType(str, enum.Enum):
+    STOCK_IN = "stock_in"
+    USED = "used"
+    WASTE = "waste"
+    ADJUSTMENT = "adjustment"
+    EXPIRED = "expired"
+
+
+class MovementItemType(str, enum.Enum):
+    INGREDIENT = "ingredient"
+    PREPARED = "prepared"
 
 
 class Restaurant(Base):
@@ -294,3 +327,102 @@ class Invoice(Base):
 
     def __repr__(self):
         return f"<Invoice(id={self.id}, number={self.invoice_number}, total={self.total_revenue})>"
+
+
+class InventoryItem(Base):
+    """Raw ingredient / stock item"""
+
+    __tablename__ = "inventory_items"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    restaurant_id = Column(UUID(as_uuid=True), ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    name = Column(String(255), nullable=False)
+    category = Column(SQLEnum(InventoryCategory), nullable=False, default=InventoryCategory.OTHER, index=True)
+    quantity = Column(Float, nullable=False, default=0.0)
+    unit = Column(String(20), nullable=False, default="pieces")  # kg, g, L, ml, pieces, portions
+    min_threshold = Column(Float, nullable=False, default=0.0)  # alert when below this
+    cost_per_unit = Column(Float, nullable=True)
+    supplier = Column(String(255), nullable=True)
+    notes = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    recipes = relationship("Recipe", back_populates="inventory_item", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<InventoryItem(id={self.id}, name={self.name}, qty={self.quantity}{self.unit})>"
+
+
+class PreparedFood(Base):
+    """Prepared / ready-to-sell food with expiry tracking"""
+
+    __tablename__ = "prepared_food"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    restaurant_id = Column(UUID(as_uuid=True), ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
+    menu_item_id = Column(UUID(as_uuid=True), ForeignKey("menu_items.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    name = Column(String(255), nullable=False)
+    quantity = Column(Integer, nullable=False, default=0)
+    batch_number = Column(String(50), nullable=True)
+    prepared_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    status = Column(SQLEnum(PreparedFoodStatus), default=PreparedFoodStatus.ACTIVE, nullable=False, index=True)
+    offer_discount = Column(Float, nullable=True)  # % discount when status=offer
+    notes = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    menu_item = relationship("MenuItem")
+
+    def __repr__(self):
+        return f"<PreparedFood(id={self.id}, name={self.name}, expires={self.expires_at})>"
+
+
+class Recipe(Base):
+    """Bill of Materials — links menu items to ingredients with required quantities"""
+
+    __tablename__ = "recipes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    restaurant_id = Column(UUID(as_uuid=True), ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
+    menu_item_id = Column(UUID(as_uuid=True), ForeignKey("menu_items.id", ondelete="CASCADE"), nullable=False, index=True)
+    inventory_item_id = Column(UUID(as_uuid=True), ForeignKey("inventory_items.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    quantity_required = Column(Float, nullable=False)
+    unit = Column(String(20), nullable=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    menu_item = relationship("MenuItem")
+    inventory_item = relationship("InventoryItem", back_populates="recipes")
+
+    def __repr__(self):
+        return f"<Recipe(menu={self.menu_item_id}, ingredient={self.inventory_item_id}, qty={self.quantity_required})>"
+
+
+class StockMovement(Base):
+    """Audit trail for all inventory changes"""
+
+    __tablename__ = "stock_movements"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    restaurant_id = Column(UUID(as_uuid=True), ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
+    item_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    item_type = Column(SQLEnum(MovementItemType), nullable=False)
+    item_name = Column(String(255), nullable=False)
+    movement_type = Column(SQLEnum(MovementType), nullable=False, index=True)
+    quantity = Column(Float, nullable=False)
+    unit = Column(String(20), nullable=True)
+    reason = Column(String(255), nullable=True)
+    reference_id = Column(UUID(as_uuid=True), nullable=True)  # e.g. order_id
+    created_by = Column(String(255), nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    def __repr__(self):
+        return f"<StockMovement(item={self.item_name}, type={self.movement_type}, qty={self.quantity})>"
