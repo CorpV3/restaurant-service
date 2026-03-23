@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, UUID4, HttpUrl
 from shared.models.enums import MenuItemCategory, TableStatus, SubscriptionStatus, PricingPlan, OrderStatus
+from .models import InventoryCategory, PreparedFoodStatus, MovementType, MovementItemType
 
 
 # Restaurant Schemas
@@ -372,5 +373,144 @@ class InvoiceResponse(BaseModel):
 
 class InvoiceCreate(BaseModel):
     """Schema for generating an invoice"""
-    period_start: Optional[datetime] = None  # Defaults to last_invoice_date or restaurant creation
-    period_end: Optional[datetime] = None    # Defaults to current time
+    period_start: Optional[datetime] = None
+    period_end: Optional[datetime] = None
+
+
+# ─── Inventory Schemas ────────────────────────────────────────────────────────
+
+class InventoryItemCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    category: InventoryCategory = InventoryCategory.OTHER
+    quantity: float = Field(default=0.0, ge=0)
+    unit: str = Field(default="pieces", max_length=20)
+    min_threshold: float = Field(default=0.0, ge=0)
+    cost_per_unit: Optional[float] = None
+    supplier: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class InventoryItemUpdate(BaseModel):
+    name: Optional[str] = None
+    category: Optional[InventoryCategory] = None
+    unit: Optional[str] = None
+    min_threshold: Optional[float] = None
+    cost_per_unit: Optional[float] = None
+    supplier: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class InventoryItemResponse(BaseModel):
+    id: UUID4
+    restaurant_id: UUID4
+    name: str
+    category: InventoryCategory
+    quantity: float
+    unit: str
+    min_threshold: float
+    cost_per_unit: Optional[float] = None
+    supplier: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class StockAdjustRequest(BaseModel):
+    delta: float  # positive = add, negative = remove
+    movement_type: Optional[str] = "adjustment"  # "waste" | "adjustment" | "stock_in"
+    reason: Optional[str] = None
+    created_by: Optional[str] = None
+
+
+class PreparedFoodCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    menu_item_id: Optional[UUID4] = None
+    quantity: int = Field(..., ge=1)
+    batch_number: Optional[str] = None
+    prepared_at: Optional[datetime] = None
+    expires_at: datetime
+    notes: Optional[str] = None
+
+
+class PreparedFoodUpdate(BaseModel):
+    name: Optional[str] = None
+    quantity: Optional[int] = None
+    expires_at: Optional[datetime] = None
+    status: Optional[PreparedFoodStatus] = None
+    offer_discount: Optional[float] = None
+    notes: Optional[str] = None
+
+
+class PreparedFoodResponse(BaseModel):
+    id: UUID4
+    restaurant_id: UUID4
+    menu_item_id: Optional[UUID4] = None
+    name: str
+    quantity: int
+    batch_number: Optional[str] = None
+    prepared_at: datetime
+    expires_at: datetime
+    status: PreparedFoodStatus
+    offer_discount: Optional[float] = None
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class RecipeCreate(BaseModel):
+    menu_item_id: UUID4
+    inventory_item_id: UUID4
+    quantity_required: float = Field(..., gt=0)
+    unit: str = Field(..., max_length=20)
+
+
+class RecipeResponse(BaseModel):
+    id: UUID4
+    restaurant_id: UUID4
+    menu_item_id: UUID4
+    inventory_item_id: UUID4
+    quantity_required: float
+    unit: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class StockMovementResponse(BaseModel):
+    id: UUID4
+    restaurant_id: UUID4
+    item_id: UUID4
+    item_type: MovementItemType
+    item_name: str
+    movement_type: MovementType
+    quantity: float
+    unit: Optional[str] = None
+    reason: Optional[str] = None
+    reference_id: Optional[UUID4] = None
+    created_by: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class InventoryAlertItem(BaseModel):
+    id: UUID4
+    name: str
+    quantity: float
+    unit: str
+    min_threshold: float
+
+
+class InventoryAlertsResponse(BaseModel):
+    low_stock: List[InventoryAlertItem]
+    expiring_soon: List[Dict]
+    expired: List[Dict]
