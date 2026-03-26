@@ -441,6 +441,7 @@ class PreparedFoodUpdate(BaseModel):
     expires_at: Optional[datetime] = None
     status: Optional[PreparedFoodStatus] = None
     offer_discount: Optional[float] = None
+    offer_price: Optional[float] = None
     notes: Optional[str] = None
 
 
@@ -455,6 +456,7 @@ class PreparedFoodResponse(BaseModel):
     expires_at: datetime
     status: PreparedFoodStatus
     offer_discount: Optional[float] = None
+    offer_price: Optional[float] = None
     notes: Optional[str] = None
     created_at: datetime
     updated_at: datetime

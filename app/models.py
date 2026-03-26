@@ -370,7 +370,8 @@ class PreparedFood(Base):
     prepared_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     expires_at = Column(DateTime, nullable=False, index=True)
     status = Column(SQLEnum(PreparedFoodStatus), default=PreparedFoodStatus.ACTIVE, nullable=False, index=True)
-    offer_discount = Column(Float, nullable=True)  # % discount when status=offer
+    offer_discount = Column(Float, nullable=True)   # % discount when status=offer
+    offer_price = Column(Float, nullable=True)      # fixed offer price (optional)
     notes = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
