@@ -208,14 +208,24 @@ async def update_prepared_food(restaurant_id: UUID, food_id: UUID, payload: Prep
 
 
 @router.post("/{restaurant_id}/inventory/prepared/{food_id}/offer", response_model=PreparedFoodResponse)
-async def convert_to_offer(restaurant_id: UUID, food_id: UUID, discount: float = Query(..., ge=1, le=99), db: AsyncSession = Depends(get_db)):
+async def convert_to_offer(
+    restaurant_id: UUID, food_id: UUID,
+    discount: Optional[float] = Query(None, ge=1, le=99),
+    offer_price: Optional[float] = Query(None, ge=0),
+    db: AsyncSession = Depends(get_db)
+):
+    if discount is None and offer_price is None:
+        raise HTTPException(status_code=400, detail="Provide discount % or offer_price")
     food = await db.get(PreparedFood, food_id)
     if not food or food.restaurant_id != restaurant_id:
         raise HTTPException(status_code=404, detail="Prepared food not found")
-    if food.status not in (PreparedFoodStatus.ACTIVE,):
-        raise HTTPException(status_code=400, detail=f"Cannot convert {food.status.value} item to offer")
+    if food.status not in (PreparedFoodStatus.ACTIVE, PreparedFoodStatus.OFFER):
+        raise HTTPException(status_code=400, detail=f"Cannot set offer on {food.status.value} item")
     food.status = PreparedFoodStatus.OFFER
-    food.offer_discount = discount
+    if discount is not None:
+        food.offer_discount = discount
+    if offer_price is not None:
+        food.offer_price = offer_price
     food.updated_at = datetime.utcnow()
     await db.commit()
     await db.refresh(food)
