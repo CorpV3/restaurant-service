@@ -133,7 +133,11 @@ async def adjust_stock(restaurant_id: UUID, item_id: UUID, payload: StockAdjustR
 @router.post("/{restaurant_id}/inventory/prepared", response_model=PreparedFoodResponse, status_code=201)
 async def create_prepared_food(restaurant_id: UUID, payload: PreparedFoodCreate, db: AsyncSession = Depends(get_db)):
     await _get_restaurant(restaurant_id, db)
-    food = PreparedFood(restaurant_id=restaurant_id, **payload.model_dump())
+    data = payload.model_dump()
+    # Strip timezone info — DB column is TIMESTAMP WITHOUT TIME ZONE
+    if data.get("expires_at") and hasattr(data["expires_at"], "tzinfo") and data["expires_at"].tzinfo:
+        data["expires_at"] = data["expires_at"].replace(tzinfo=None)
+    food = PreparedFood(restaurant_id=restaurant_id, **data)
     db.add(food)
     await db.flush()
     await _log_movement(db, restaurant_id, food.id, MovementItemType.PREPARED,
@@ -194,6 +198,8 @@ async def update_prepared_food(restaurant_id: UUID, food_id: UUID, payload: Prep
     if not food or food.restaurant_id != restaurant_id:
         raise HTTPException(status_code=404, detail="Prepared food not found")
     for k, v in payload.model_dump(exclude_unset=True).items():
+        if k == "expires_at" and v and hasattr(v, "tzinfo") and v.tzinfo:
+            v = v.replace(tzinfo=None)
         setattr(food, k, v)
     food.updated_at = datetime.utcnow()
     await db.commit()
