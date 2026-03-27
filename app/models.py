@@ -108,6 +108,14 @@ class Restaurant(Base):
     sumup_enabled = Column(Boolean, default=False, nullable=False)
     sumup_api_key = Column(String(500), nullable=True)
 
+    # Partner & Tier
+    tier = Column(String(20), default="enterprise", nullable=False)          # basic | enterprise
+    billing_model = Column(String(20), default="per_booking", nullable=False) # per_booking | monthly
+    monthly_charge = Column(Float, default=0.0, nullable=False)
+    partner_id = Column(UUID(as_uuid=True), nullable=True, index=True)       # ref to auth-service Partner
+    commission_type = Column(String(20), nullable=True)                      # percent | fixed
+    commission_value = Column(Float, nullable=True)
+
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -427,3 +435,28 @@ class StockMovement(Base):
 
     def __repr__(self):
         return f"<StockMovement(item={self.item_name}, type={self.movement_type}, qty={self.quantity})>"
+
+
+class PartnerInvoice(Base):
+    """Monthly commission invoice for a partner"""
+
+    __tablename__ = "partner_invoices"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    partner_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    invoice_number = Column(String(50), unique=True, nullable=False)
+    period_start = Column(DateTime, nullable=False)
+    period_end = Column(DateTime, nullable=False)
+    restaurants_count = Column(Integer, default=0)
+    total_revenue = Column(Float, default=0.0)
+    total_commission = Column(Float, default=0.0)
+    line_items = Column(JSONB, default=list)  # per-restaurant breakdown
+    is_paid = Column(Boolean, default=False, nullable=False)
+    paid_at = Column(DateTime, nullable=True)
+    notes = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<PartnerInvoice(id={self.id}, partner={self.partner_id}, commission={self.total_commission})>"

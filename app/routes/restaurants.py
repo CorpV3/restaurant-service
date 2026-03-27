@@ -17,7 +17,7 @@ from ..schemas import (
     RestaurantBilling,
     InvoiceCreate,
     InvoiceResponse,
-    MessageResponse
+    MessageResponse,
 )
 from ..utils.slug import generate_unique_slug
 from shared.models.enums import UserRole, TableStatus
@@ -57,6 +57,12 @@ async def create_restaurant(
         per_table_booking_fee=restaurant_data.per_table_booking_fee,
         per_online_booking_fee=restaurant_data.per_online_booking_fee,
         enable_booking_fees=restaurant_data.enable_booking_fees,
+        tier=restaurant_data.tier or "enterprise",
+        billing_model=restaurant_data.billing_model or "per_booking",
+        monthly_charge=restaurant_data.monthly_charge or 0.0,
+        partner_id=restaurant_data.partner_id,
+        commission_type=restaurant_data.commission_type,
+        commission_value=restaurant_data.commission_value,
         is_active=True
     )
 
