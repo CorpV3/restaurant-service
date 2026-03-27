@@ -9,7 +9,7 @@ from pathlib import Path
 from shared.config.settings import settings
 from shared.utils.logger import setup_logger
 from .database import init_db, close_db
-from .routes import restaurants, menu_items, tables, feedback, orders, inventory
+from .routes import restaurants, menu_items, tables, feedback, orders, inventory, partners
 
 # Setup logger
 logger = setup_logger("restaurant-service", settings.log_level, settings.log_format)
@@ -88,6 +88,12 @@ app.include_router(
     inventory.router,
     prefix="/api/v1/restaurants",
     tags=["Inventory"]
+)
+
+app.include_router(
+    partners.router,
+    prefix="/api/v1/partners",
+    tags=["Partners"]
 )
 
 

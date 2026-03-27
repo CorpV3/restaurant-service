@@ -31,6 +31,13 @@ class RestaurantCreate(RestaurantBase):
     per_table_booking_fee: float = Field(default=0.0, ge=0)
     per_online_booking_fee: float = Field(default=0.0, ge=0)
     enable_booking_fees: bool = False
+    # Partner & Tier
+    tier: Optional[str] = Field(default="enterprise", pattern="^(basic|enterprise)$")
+    billing_model: Optional[str] = Field(default="per_booking", pattern="^(per_booking|monthly)$")
+    monthly_charge: Optional[float] = Field(default=0.0, ge=0)
+    partner_id: Optional[UUID4] = None
+    commission_type: Optional[str] = Field(None, pattern="^(percent|fixed)$")
+    commission_value: Optional[float] = Field(None, ge=0)
 
 
 class RestaurantUpdate(BaseModel):
@@ -67,6 +74,13 @@ class RestaurantUpdate(BaseModel):
     stripe_secret_key: Optional[str] = Field(None, max_length=500)
     sumup_enabled: Optional[bool] = None
     sumup_api_key: Optional[str] = Field(None, max_length=500)
+    # Partner & Tier
+    tier: Optional[str] = Field(None, pattern="^(basic|enterprise)$")
+    billing_model: Optional[str] = Field(None, pattern="^(per_booking|monthly)$")
+    monthly_charge: Optional[float] = Field(None, ge=0)
+    partner_id: Optional[UUID4] = None
+    commission_type: Optional[str] = Field(None, pattern="^(percent|fixed)$")
+    commission_value: Optional[float] = Field(None, ge=0)
 
 
 class RestaurantBranding(BaseModel):
@@ -112,6 +126,13 @@ class RestaurantResponse(RestaurantBase):
     stripe_secret_key: Optional[str] = None
     sumup_enabled: bool = False
     sumup_api_key: Optional[str] = None
+    # Partner & Tier
+    tier: str = "enterprise"
+    billing_model: str = "per_booking"
+    monthly_charge: float = 0.0
+    partner_id: Optional[UUID4] = None
+    commission_type: Optional[str] = None
+    commission_value: Optional[float] = None
     created_at: datetime
     updated_at: datetime
 
@@ -516,3 +537,41 @@ class InventoryAlertsResponse(BaseModel):
     low_stock: List[InventoryAlertItem]
     expiring_soon: List[Dict]
     expired: List[Dict]
+
+
+# ─── Partner Invoice Schemas ──────────────────────────────────────────────────
+
+class PartnerInvoiceResponse(BaseModel):
+    id: UUID4
+    partner_id: UUID4
+    invoice_number: str
+    period_start: datetime
+    period_end: datetime
+    restaurants_count: int
+    total_revenue: float
+    total_commission: float
+    line_items: List[Dict]
+    is_paid: bool
+    paid_at: Optional[datetime] = None
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PartnerInvoiceGenerate(BaseModel):
+    period_start: datetime
+    period_end: datetime
+    notes: Optional[str] = None
+
+
+class PartnerDashboardResponse(BaseModel):
+    partner_id: UUID4
+    total_restaurants: int
+    active_restaurants: int
+    total_invoices: int
+    total_commission_earned: float
+    unpaid_commission: float
+    restaurants: List[Dict]
