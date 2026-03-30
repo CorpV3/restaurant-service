@@ -326,11 +326,11 @@ async def get_alerts(restaurant_id: UUID, db: AsyncSession = Depends(get_db)):
     exp_result = await db.execute(exp_q)
     expiring = exp_result.scalars().all()
 
-    # Already expired but not yet marked
+    # Expired items (status EXPIRED or still marked ACTIVE/OFFER past expiry)
     expired_q = select(PreparedFood).where(and_(
         PreparedFood.restaurant_id == restaurant_id,
         PreparedFood.expires_at <= now,
-        PreparedFood.status.in_([PreparedFoodStatus.ACTIVE, PreparedFoodStatus.OFFER])
+        PreparedFood.status.in_([PreparedFoodStatus.ACTIVE, PreparedFoodStatus.OFFER, PreparedFoodStatus.EXPIRED])
     ))
     expired_result = await db.execute(expired_q)
     expired = expired_result.scalars().all()
