@@ -48,6 +48,7 @@ async def _log_movement(db, restaurant_id, item_id, item_type, item_name,
 
 # ─── inventory items (ingredients) ────────────────────────────────────────────
 
+@router.post("/{restaurant_id}/inventory", response_model=InventoryItemResponse, status_code=201)
 @router.post("/{restaurant_id}/inventory/items", response_model=InventoryItemResponse, status_code=201)
 async def create_inventory_item(restaurant_id: UUID, payload: InventoryItemCreate, db: AsyncSession = Depends(get_db)):
     await _get_restaurant(restaurant_id, db)
@@ -62,6 +63,7 @@ async def create_inventory_item(restaurant_id: UUID, payload: InventoryItemCreat
     return item
 
 
+@router.get("/{restaurant_id}/inventory", response_model=List[InventoryItemResponse])
 @router.get("/{restaurant_id}/inventory/items", response_model=List[InventoryItemResponse])
 async def list_inventory_items(
     restaurant_id: UUID,

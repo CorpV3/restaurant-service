@@ -147,6 +147,7 @@ async def get_restaurant(
 
 
 @router.put("/{restaurant_id}", response_model=RestaurantResponse)
+@router.patch("/{restaurant_id}", response_model=RestaurantResponse)
 async def update_restaurant(
     restaurant_id: UUID,
     restaurant_data: RestaurantUpdate,
