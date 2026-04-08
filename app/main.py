@@ -1,11 +1,17 @@
 """
 Restaurant Service - Main application
 """
+import mimetypes
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+# Register MIME types missing from Python's default mimetypes on Linux
+mimetypes.add_type('image/webp', '.webp')
+mimetypes.add_type('image/avif', '.avif')
+mimetypes.add_type('image/heic', '.heic')
 from shared.config.settings import settings
 from shared.utils.logger import setup_logger
 from .database import init_db, close_db
