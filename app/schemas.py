@@ -31,6 +31,10 @@ class RestaurantCreate(RestaurantBase):
     per_table_booking_fee: float = Field(default=0.0, ge=0)
     per_online_booking_fee: float = Field(default=0.0, ge=0)
     enable_booking_fees: bool = False
+    # VAT settings
+    vat_enabled: bool = True
+    vat_rate: float = Field(default=20.0, ge=0, le=100)
+    vat_number: Optional[str] = Field(None, max_length=50)
     # Partner & Tier
     tier: Optional[str] = Field(default="enterprise", pattern="^(basic|enterprise)$")
     billing_model: Optional[str] = Field(default="per_booking", pattern="^(per_booking|monthly)$")
@@ -74,6 +78,10 @@ class RestaurantUpdate(BaseModel):
     stripe_secret_key: Optional[str] = Field(None, max_length=500)
     sumup_enabled: Optional[bool] = None
     sumup_api_key: Optional[str] = Field(None, max_length=500)
+    # VAT settings
+    vat_enabled: Optional[bool] = None
+    vat_rate: Optional[float] = Field(None, ge=0, le=100)
+    vat_number: Optional[str] = Field(None, max_length=50)
     # Partner & Tier
     tier: Optional[str] = Field(None, pattern="^(basic|enterprise)$")
     billing_model: Optional[str] = Field(None, pattern="^(per_booking|monthly)$")
@@ -126,6 +134,10 @@ class RestaurantResponse(RestaurantBase):
     stripe_secret_key: Optional[str] = None
     sumup_enabled: bool = False
     sumup_api_key: Optional[str] = None
+    # VAT / Tax settings
+    vat_enabled: bool = True
+    vat_rate: float = 20.0
+    vat_number: Optional[str] = None
     # Partner & Tier
     tier: str = "enterprise"
     billing_model: str = "per_booking"
@@ -155,11 +167,22 @@ class MenuItemBase(BaseModel):
     calories: Optional[int] = Field(None, ge=0)
 
 
+class DealComponent(BaseModel):
+    """One step/component in a meal deal"""
+    step: int
+    label: str = Field(..., min_length=1, max_length=100)  # e.g. "Choose your Main"
+    qty: int = Field(default=1, ge=1)
+    type: str = Field(..., pattern="^(category|items)$")   # "category" or "items"
+    value: Any  # category string OR list of item UUIDs
+
+
 class MenuItemCreate(MenuItemBase):
     """Schema for menu item creation"""
     ingredients: Optional[List[str]] = []
     allergens: Optional[List[str]] = []
     display_order: int = Field(default=0, ge=0)
+    is_deal: bool = False
+    deal_components: Optional[List[DealComponent]] = None
 
 
 class MenuItemUpdate(BaseModel):
@@ -178,6 +201,8 @@ class MenuItemUpdate(BaseModel):
     ingredients: Optional[List[str]] = None
     allergens: Optional[List[str]] = None
     display_order: Optional[int] = Field(None, ge=0)
+    is_deal: Optional[bool] = None
+    deal_components: Optional[List[DealComponent]] = None
 
 
 class MenuItemResponse(MenuItemBase):
@@ -188,6 +213,8 @@ class MenuItemResponse(MenuItemBase):
     ingredients: List[str]
     allergens: List[str]
     display_order: int
+    is_deal: bool = False
+    deal_components: Optional[List[Dict[str, Any]]] = None
     created_at: datetime
     updated_at: datetime
 

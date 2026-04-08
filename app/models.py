@@ -108,6 +108,11 @@ class Restaurant(Base):
     sumup_enabled = Column(Boolean, default=False, nullable=False)
     sumup_api_key = Column(String(500), nullable=True)
 
+    # VAT / Tax settings
+    vat_enabled = Column(Boolean, default=True, nullable=False)
+    vat_rate = Column(Float, default=20.0, nullable=False)   # percentage e.g. 20.0
+    vat_number = Column(String(50), nullable=True)           # printed on receipts
+
     # Partner & Tier
     tier = Column(String(20), default="enterprise", nullable=False)          # basic | enterprise
     billing_model = Column(String(20), default="per_booking", nullable=False) # per_booking | monthly
@@ -156,6 +161,10 @@ class MenuItem(Base):
 
     # Display order
     display_order = Column(Integer, default=0, nullable=False)
+
+    # Deal / combo fields
+    is_deal = Column(Boolean, default=False, nullable=False)
+    deal_components = Column(JSONB, nullable=True)  # list of {step, label, qty, type, value}
 
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
