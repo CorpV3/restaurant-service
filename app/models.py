@@ -469,3 +469,29 @@ class PartnerInvoice(Base):
 
     def __repr__(self):
         return f"<PartnerInvoice(id={self.id}, partner={self.partner_id}, commission={self.total_commission})>"
+
+
+class AppAnnouncement(Base):
+    __tablename__ = "app_announcements"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    message = Column(String(500), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<AppAnnouncement(id={self.id}, active={self.is_active})>"
+
+
+class AppVersion(Base):
+    __tablename__ = "app_versions"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    platform = Column(String(20), nullable=False, unique=True)  # 'windows' or 'android'
+    version_string = Column(String(50), nullable=False)
+    download_url = Column(String(1000), nullable=False)
+    release_notes = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<AppVersion(platform={self.platform}, version={self.version_string})>"
