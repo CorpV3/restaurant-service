@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, UUID4, HttpUrl
 from shared.models.enums import MenuItemCategory, TableStatus, SubscriptionStatus, PricingPlan, OrderStatus
+from .models import InventoryCategory, PreparedFoodStatus, MovementType, MovementItemType
 
 
 # Restaurant Schemas
@@ -30,6 +31,17 @@ class RestaurantCreate(RestaurantBase):
     per_table_booking_fee: float = Field(default=0.0, ge=0)
     per_online_booking_fee: float = Field(default=0.0, ge=0)
     enable_booking_fees: bool = False
+    # VAT settings
+    vat_enabled: bool = True
+    vat_rate: float = Field(default=20.0, ge=0, le=100)
+    vat_number: Optional[str] = Field(None, max_length=50)
+    # Partner & Tier
+    tier: Optional[str] = Field(default="enterprise", pattern="^(basic|enterprise)$")
+    billing_model: Optional[str] = Field(default="per_booking", pattern="^(per_booking|monthly)$")
+    monthly_charge: Optional[float] = Field(default=0.0, ge=0)
+    partner_id: Optional[UUID4] = None
+    commission_type: Optional[str] = Field(None, pattern="^(percent|fixed)$")
+    commission_value: Optional[float] = Field(None, ge=0)
 
 
 class RestaurantUpdate(BaseModel):
@@ -66,6 +78,17 @@ class RestaurantUpdate(BaseModel):
     stripe_secret_key: Optional[str] = Field(None, max_length=500)
     sumup_enabled: Optional[bool] = None
     sumup_api_key: Optional[str] = Field(None, max_length=500)
+    # VAT settings
+    vat_enabled: Optional[bool] = None
+    vat_rate: Optional[float] = Field(None, ge=0, le=100)
+    vat_number: Optional[str] = Field(None, max_length=50)
+    # Partner & Tier
+    tier: Optional[str] = Field(None, pattern="^(basic|enterprise)$")
+    billing_model: Optional[str] = Field(None, pattern="^(per_booking|monthly)$")
+    monthly_charge: Optional[float] = Field(None, ge=0)
+    partner_id: Optional[UUID4] = None
+    commission_type: Optional[str] = Field(None, pattern="^(percent|fixed)$")
+    commission_value: Optional[float] = Field(None, ge=0)
 
 
 class RestaurantBranding(BaseModel):
@@ -111,6 +134,17 @@ class RestaurantResponse(RestaurantBase):
     stripe_secret_key: Optional[str] = None
     sumup_enabled: bool = False
     sumup_api_key: Optional[str] = None
+    # VAT / Tax settings
+    vat_enabled: bool = True
+    vat_rate: float = 20.0
+    vat_number: Optional[str] = None
+    # Partner & Tier
+    tier: str = "enterprise"
+    billing_model: str = "per_booking"
+    monthly_charge: float = 0.0
+    partner_id: Optional[UUID4] = None
+    commission_type: Optional[str] = None
+    commission_value: Optional[float] = None
     created_at: datetime
     updated_at: datetime
 
@@ -133,11 +167,22 @@ class MenuItemBase(BaseModel):
     calories: Optional[int] = Field(None, ge=0)
 
 
+class DealComponent(BaseModel):
+    """One step/component in a meal deal"""
+    step: int
+    label: str = Field(..., min_length=1, max_length=100)  # e.g. "Choose your Main"
+    qty: int = Field(default=1, ge=1)
+    type: str = Field(..., pattern="^(category|items)$")   # "category" or "items"
+    value: Any  # category string OR list of item UUIDs
+
+
 class MenuItemCreate(MenuItemBase):
     """Schema for menu item creation"""
     ingredients: Optional[List[str]] = []
     allergens: Optional[List[str]] = []
     display_order: int = Field(default=0, ge=0)
+    is_deal: bool = False
+    deal_components: Optional[List[DealComponent]] = None
 
 
 class MenuItemUpdate(BaseModel):
@@ -156,6 +201,8 @@ class MenuItemUpdate(BaseModel):
     ingredients: Optional[List[str]] = None
     allergens: Optional[List[str]] = None
     display_order: Optional[int] = Field(None, ge=0)
+    is_deal: Optional[bool] = None
+    deal_components: Optional[List[DealComponent]] = None
 
 
 class MenuItemResponse(MenuItemBase):
@@ -166,6 +213,8 @@ class MenuItemResponse(MenuItemBase):
     ingredients: List[str]
     allergens: List[str]
     display_order: int
+    is_deal: bool = False
+    deal_components: Optional[List[Dict[str, Any]]] = None
     created_at: datetime
     updated_at: datetime
 
@@ -372,5 +421,184 @@ class InvoiceResponse(BaseModel):
 
 class InvoiceCreate(BaseModel):
     """Schema for generating an invoice"""
-    period_start: Optional[datetime] = None  # Defaults to last_invoice_date or restaurant creation
-    period_end: Optional[datetime] = None    # Defaults to current time
+    period_start: Optional[datetime] = None
+    period_end: Optional[datetime] = None
+
+
+# ─── Inventory Schemas ────────────────────────────────────────────────────────
+
+class InventoryItemCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    category: InventoryCategory = InventoryCategory.OTHER
+    quantity: float = Field(default=0.0, ge=0)
+    unit: str = Field(default="pieces", max_length=20)
+    min_threshold: float = Field(default=0.0, ge=0)
+    cost_per_unit: Optional[float] = None
+    supplier: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class InventoryItemUpdate(BaseModel):
+    name: Optional[str] = None
+    category: Optional[InventoryCategory] = None
+    unit: Optional[str] = None
+    min_threshold: Optional[float] = None
+    cost_per_unit: Optional[float] = None
+    supplier: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class InventoryItemResponse(BaseModel):
+    id: UUID4
+    restaurant_id: UUID4
+    name: str
+    category: InventoryCategory
+    quantity: float
+    unit: str
+    min_threshold: float
+    cost_per_unit: Optional[float] = None
+    supplier: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class StockAdjustRequest(BaseModel):
+    delta: float  # positive = add, negative = remove
+    movement_type: Optional[str] = "adjustment"  # "waste" | "adjustment" | "stock_in"
+    reason: Optional[str] = None
+    created_by: Optional[str] = None
+
+
+class PreparedFoodCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    menu_item_id: Optional[UUID4] = None
+    quantity: int = Field(..., ge=1)
+    batch_number: Optional[str] = None
+    prepared_at: Optional[datetime] = None
+    expires_at: datetime
+    notes: Optional[str] = None
+
+
+class PreparedFoodUpdate(BaseModel):
+    name: Optional[str] = None
+    quantity: Optional[int] = None
+    expires_at: Optional[datetime] = None
+    status: Optional[PreparedFoodStatus] = None
+    offer_discount: Optional[float] = None
+    offer_price: Optional[float] = None
+    notes: Optional[str] = None
+
+
+class PreparedFoodResponse(BaseModel):
+    id: UUID4
+    restaurant_id: UUID4
+    menu_item_id: Optional[UUID4] = None
+    name: str
+    quantity: int
+    batch_number: Optional[str] = None
+    prepared_at: datetime
+    expires_at: datetime
+    status: PreparedFoodStatus
+    offer_discount: Optional[float] = None
+    offer_price: Optional[float] = None
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class RecipeCreate(BaseModel):
+    menu_item_id: UUID4
+    inventory_item_id: UUID4
+    quantity_required: float = Field(..., gt=0)
+    unit: str = Field(..., max_length=20)
+
+
+class RecipeResponse(BaseModel):
+    id: UUID4
+    restaurant_id: UUID4
+    menu_item_id: UUID4
+    inventory_item_id: UUID4
+    quantity_required: float
+    unit: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class StockMovementResponse(BaseModel):
+    id: UUID4
+    restaurant_id: UUID4
+    item_id: UUID4
+    item_type: MovementItemType
+    item_name: str
+    movement_type: MovementType
+    quantity: float
+    unit: Optional[str] = None
+    reason: Optional[str] = None
+    reference_id: Optional[UUID4] = None
+    created_by: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class InventoryAlertItem(BaseModel):
+    id: UUID4
+    name: str
+    quantity: float
+    unit: str
+    min_threshold: float
+
+
+class InventoryAlertsResponse(BaseModel):
+    low_stock: List[InventoryAlertItem]
+    expiring_soon: List[Dict]
+    expired: List[Dict]
+
+
+# ─── Partner Invoice Schemas ──────────────────────────────────────────────────
+
+class PartnerInvoiceResponse(BaseModel):
+    id: UUID4
+    partner_id: UUID4
+    invoice_number: str
+    period_start: datetime
+    period_end: datetime
+    restaurants_count: int
+    total_revenue: float
+    total_commission: float
+    line_items: List[Dict]
+    is_paid: bool
+    paid_at: Optional[datetime] = None
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PartnerInvoiceGenerate(BaseModel):
+    period_start: datetime
+    period_end: datetime
+    notes: Optional[str] = None
+
+
+class PartnerDashboardResponse(BaseModel):
+    partner_id: UUID4
+    total_restaurants: int
+    active_restaurants: int
+    total_invoices: int
+    total_commission_earned: float
+    unpaid_commission: float
+    restaurants: List[Dict]

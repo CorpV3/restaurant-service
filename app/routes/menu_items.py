@@ -67,7 +67,9 @@ async def create_menu_item(
         ingredients=item_data.ingredients or [],
         allergens=item_data.allergens or [],
         display_order=item_data.display_order,
-        is_available=True
+        is_available=True,
+        is_deal=item_data.is_deal,
+        deal_components=[c.model_dump() for c in item_data.deal_components] if item_data.deal_components else None,
     )
 
     db.add(new_item)
@@ -143,6 +145,7 @@ async def get_menu_item(
 
 
 @router.put("/{restaurant_id}/menu-items/{item_id}", response_model=MenuItemResponse)
+@router.patch("/{restaurant_id}/menu-items/{item_id}", response_model=MenuItemResponse)
 async def update_menu_item(
     restaurant_id: UUID,
     item_id: UUID,
@@ -169,7 +172,10 @@ async def update_menu_item(
     # Update fields
     update_data = item_data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
-        if value is not None:
+        if field == 'deal_components':
+            # Serialize DealComponent objects to plain dicts for JSONB
+            setattr(item, field, value if value is not None else None)
+        elif value is not None:
             setattr(item, field, value)
 
     await db.commit()

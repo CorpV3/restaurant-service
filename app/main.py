@@ -1,15 +1,21 @@
 """
 Restaurant Service - Main application
 """
+import mimetypes
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+# Register MIME types missing from Python's default mimetypes on Linux
+mimetypes.add_type('image/webp', '.webp')
+mimetypes.add_type('image/avif', '.avif')
+mimetypes.add_type('image/heic', '.heic')
 from shared.config.settings import settings
 from shared.utils.logger import setup_logger
 from .database import init_db, close_db
-from .routes import restaurants, menu_items, tables, feedback, orders
+from .routes import restaurants, menu_items, tables, feedback, orders, inventory, partners, system
 
 # Setup logger
 logger = setup_logger("restaurant-service", settings.log_level, settings.log_format)
@@ -82,6 +88,24 @@ app.include_router(
     orders.router,
     prefix="/api/v1",
     tags=["Orders"]
+)
+
+app.include_router(
+    inventory.router,
+    prefix="/api/v1/restaurants",
+    tags=["Inventory"]
+)
+
+app.include_router(
+    partners.router,
+    prefix="/api/v1/partners",
+    tags=["Partners"]
+)
+
+app.include_router(
+    system.router,
+    prefix="/api/v1/system",
+    tags=["System"]
 )
 
 

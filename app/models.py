@@ -2,12 +2,45 @@
 Database models for Restaurant Service
 """
 from datetime import datetime
+import enum
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Float, Text, ForeignKey, Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 import uuid
 from shared.models.enums import MenuItemCategory, TableStatus, SubscriptionStatus, PricingPlan, OrderStatus
 from .database import Base
+
+
+class InventoryCategory(str, enum.Enum):
+    MEAT = "meat"
+    VEGETABLES = "vegetables"
+    DAIRY = "dairy"
+    BAKERY = "bakery"
+    SPICES = "spices"
+    BEVERAGES = "beverages"
+    SEAFOOD = "seafood"
+    FROZEN = "frozen"
+    OTHER = "other"
+
+
+class PreparedFoodStatus(str, enum.Enum):
+    ACTIVE = "active"
+    OFFER = "offer"
+    EXPIRED = "expired"
+    CONSUMED = "consumed"
+
+
+class MovementType(str, enum.Enum):
+    STOCK_IN = "stock_in"
+    USED = "used"
+    WASTE = "waste"
+    ADJUSTMENT = "adjustment"
+    EXPIRED = "expired"
+
+
+class MovementItemType(str, enum.Enum):
+    INGREDIENT = "ingredient"
+    PREPARED = "prepared"
 
 
 class Restaurant(Base):
@@ -75,6 +108,19 @@ class Restaurant(Base):
     sumup_enabled = Column(Boolean, default=False, nullable=False)
     sumup_api_key = Column(String(500), nullable=True)
 
+    # VAT / Tax settings
+    vat_enabled = Column(Boolean, default=True, nullable=False)
+    vat_rate = Column(Float, default=20.0, nullable=False)   # percentage e.g. 20.0
+    vat_number = Column(String(50), nullable=True)           # printed on receipts
+
+    # Partner & Tier
+    tier = Column(String(20), default="enterprise", nullable=False)          # basic | enterprise
+    billing_model = Column(String(20), default="per_booking", nullable=False) # per_booking | monthly
+    monthly_charge = Column(Float, default=0.0, nullable=False)
+    partner_id = Column(UUID(as_uuid=True), nullable=True, index=True)       # ref to auth-service Partner
+    commission_type = Column(String(20), nullable=True)                      # percent | fixed
+    commission_value = Column(Float, nullable=True)
+
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -115,6 +161,10 @@ class MenuItem(Base):
 
     # Display order
     display_order = Column(Integer, default=0, nullable=False)
+
+    # Deal / combo fields
+    is_deal = Column(Boolean, default=False, nullable=False)
+    deal_components = Column(JSONB, nullable=True)  # list of {step, label, qty, type, value}
 
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -294,3 +344,154 @@ class Invoice(Base):
 
     def __repr__(self):
         return f"<Invoice(id={self.id}, number={self.invoice_number}, total={self.total_revenue})>"
+
+
+class InventoryItem(Base):
+    """Raw ingredient / stock item"""
+
+    __tablename__ = "inventory_items"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    restaurant_id = Column(UUID(as_uuid=True), ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    name = Column(String(255), nullable=False)
+    category = Column(SQLEnum(InventoryCategory), nullable=False, default=InventoryCategory.OTHER, index=True)
+    quantity = Column(Float, nullable=False, default=0.0)
+    unit = Column(String(20), nullable=False, default="pieces")  # kg, g, L, ml, pieces, portions
+    min_threshold = Column(Float, nullable=False, default=0.0)  # alert when below this
+    cost_per_unit = Column(Float, nullable=True)
+    supplier = Column(String(255), nullable=True)
+    notes = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    recipes = relationship("Recipe", back_populates="inventory_item", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<InventoryItem(id={self.id}, name={self.name}, qty={self.quantity}{self.unit})>"
+
+
+class PreparedFood(Base):
+    """Prepared / ready-to-sell food with expiry tracking"""
+
+    __tablename__ = "prepared_food"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    restaurant_id = Column(UUID(as_uuid=True), ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
+    menu_item_id = Column(UUID(as_uuid=True), ForeignKey("menu_items.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    name = Column(String(255), nullable=False)
+    quantity = Column(Integer, nullable=False, default=0)
+    batch_number = Column(String(50), nullable=True)
+    prepared_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    status = Column(SQLEnum(PreparedFoodStatus), default=PreparedFoodStatus.ACTIVE, nullable=False, index=True)
+    offer_discount = Column(Float, nullable=True)   # % discount when status=offer
+    offer_price = Column(Float, nullable=True)      # fixed offer price (optional)
+    notes = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    menu_item = relationship("MenuItem")
+
+    def __repr__(self):
+        return f"<PreparedFood(id={self.id}, name={self.name}, expires={self.expires_at})>"
+
+
+class Recipe(Base):
+    """Bill of Materials — links menu items to ingredients with required quantities"""
+
+    __tablename__ = "recipes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    restaurant_id = Column(UUID(as_uuid=True), ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
+    menu_item_id = Column(UUID(as_uuid=True), ForeignKey("menu_items.id", ondelete="CASCADE"), nullable=False, index=True)
+    inventory_item_id = Column(UUID(as_uuid=True), ForeignKey("inventory_items.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    quantity_required = Column(Float, nullable=False)
+    unit = Column(String(20), nullable=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    menu_item = relationship("MenuItem")
+    inventory_item = relationship("InventoryItem", back_populates="recipes")
+
+    def __repr__(self):
+        return f"<Recipe(menu={self.menu_item_id}, ingredient={self.inventory_item_id}, qty={self.quantity_required})>"
+
+
+class StockMovement(Base):
+    """Audit trail for all inventory changes"""
+
+    __tablename__ = "stock_movements"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    restaurant_id = Column(UUID(as_uuid=True), ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
+    item_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    item_type = Column(SQLEnum(MovementItemType), nullable=False)
+    item_name = Column(String(255), nullable=False)
+    movement_type = Column(SQLEnum(MovementType), nullable=False, index=True)
+    quantity = Column(Float, nullable=False)
+    unit = Column(String(20), nullable=True)
+    reason = Column(String(255), nullable=True)
+    reference_id = Column(UUID(as_uuid=True), nullable=True)  # e.g. order_id
+    created_by = Column(String(255), nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    def __repr__(self):
+        return f"<StockMovement(item={self.item_name}, type={self.movement_type}, qty={self.quantity})>"
+
+
+class PartnerInvoice(Base):
+    """Monthly commission invoice for a partner"""
+
+    __tablename__ = "partner_invoices"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    partner_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    invoice_number = Column(String(50), unique=True, nullable=False)
+    period_start = Column(DateTime, nullable=False)
+    period_end = Column(DateTime, nullable=False)
+    restaurants_count = Column(Integer, default=0)
+    total_revenue = Column(Float, default=0.0)
+    total_commission = Column(Float, default=0.0)
+    line_items = Column(JSONB, default=list)  # per-restaurant breakdown
+    is_paid = Column(Boolean, default=False, nullable=False)
+    paid_at = Column(DateTime, nullable=True)
+    notes = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<PartnerInvoice(id={self.id}, partner={self.partner_id}, commission={self.total_commission})>"
+
+
+class AppAnnouncement(Base):
+    __tablename__ = "app_announcements"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    message = Column(String(500), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<AppAnnouncement(id={self.id}, active={self.is_active})>"
+
+
+class AppVersion(Base):
+    __tablename__ = "app_versions"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    platform = Column(String(20), nullable=False, unique=True)  # 'windows' or 'android'
+    version_string = Column(String(50), nullable=False)
+    download_url = Column(String(1000), nullable=False)
+    release_notes = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<AppVersion(platform={self.platform}, version={self.version_string})>"
