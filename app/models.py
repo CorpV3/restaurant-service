@@ -113,6 +113,11 @@ class Restaurant(Base):
     vat_rate = Column(Float, default=20.0, nullable=False)   # percentage e.g. 20.0
     vat_number = Column(String(50), nullable=True)           # printed on receipts
 
+    # POS Feature Toggles
+    chef_display_enabled = Column(Boolean, default=True, nullable=False)   # show/hide KDS in POS
+    auto_print_enabled = Column(Boolean, default=False, nullable=False)    # auto-print on new order
+    auto_print_copies = Column(Integer, default=1, nullable=False)         # number of copies to print
+
     # Partner & Tier
     tier = Column(String(20), default="enterprise", nullable=False)          # basic | enterprise
     billing_model = Column(String(20), default="per_booking", nullable=False) # per_booking | monthly
