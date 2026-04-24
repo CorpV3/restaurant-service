@@ -165,8 +165,8 @@ async def upsert_version(
     db: AsyncSession = Depends(get_db),
 ):
     _require_master_admin(payload)
-    if platform not in ("windows", "android"):
-        raise HTTPException(status_code=400, detail="Platform must be 'windows' or 'android'")
+    if platform not in ("windows", "android", "ios"):
+        raise HTTPException(status_code=400, detail="Platform must be 'windows', 'android', or 'ios'")
     result = await db.execute(select(AppVersion).where(AppVersion.platform == platform))
     v = result.scalar_one_or_none()
     if v:

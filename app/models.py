@@ -492,7 +492,7 @@ class AppVersion(Base):
     __tablename__ = "app_versions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    platform = Column(String(20), nullable=False, unique=True)  # 'windows' or 'android'
+    platform = Column(String(20), nullable=False, unique=True)  # 'windows', 'android', or 'ios'
     version_string = Column(String(50), nullable=False)
     download_url = Column(String(1000), nullable=False)
     release_notes = Column(Text, nullable=True)
