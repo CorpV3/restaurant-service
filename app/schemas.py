@@ -39,6 +39,7 @@ class RestaurantCreate(RestaurantBase):
     chef_display_enabled: bool = True
     auto_print_enabled: bool = False
     auto_print_copies: int = Field(default=1, ge=1, le=10)
+    manual_card_enabled: bool = False
     # Partner & Tier
     tier: Optional[str] = Field(default="enterprise", pattern="^(basic|enterprise)$")
     billing_model: Optional[str] = Field(default="per_booking", pattern="^(per_booking|monthly)$")
@@ -90,6 +91,7 @@ class RestaurantUpdate(BaseModel):
     chef_display_enabled: Optional[bool] = None
     auto_print_enabled: Optional[bool] = None
     auto_print_copies: Optional[int] = Field(None, ge=1, le=10)
+    manual_card_enabled: Optional[bool] = None
     # Partner & Tier
     tier: Optional[str] = Field(None, pattern="^(basic|enterprise)$")
     billing_model: Optional[str] = Field(None, pattern="^(per_booking|monthly)$")
@@ -150,6 +152,7 @@ class RestaurantResponse(RestaurantBase):
     chef_display_enabled: bool = True
     auto_print_enabled: bool = False
     auto_print_copies: int = 1
+    manual_card_enabled: bool = False
     # Partner & Tier
     tier: str = "enterprise"
     billing_model: str = "per_booking"
