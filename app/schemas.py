@@ -35,6 +35,11 @@ class RestaurantCreate(RestaurantBase):
     vat_enabled: bool = True
     vat_rate: float = Field(default=20.0, ge=0, le=100)
     vat_number: Optional[str] = Field(None, max_length=50)
+    # POS Feature Toggles
+    chef_display_enabled: bool = True
+    auto_print_enabled: bool = False
+    auto_print_copies: int = Field(default=1, ge=1, le=10)
+    manual_card_enabled: bool = False
     # Partner & Tier
     tier: Optional[str] = Field(default="enterprise", pattern="^(basic|enterprise)$")
     billing_model: Optional[str] = Field(default="per_booking", pattern="^(per_booking|monthly)$")
@@ -82,6 +87,11 @@ class RestaurantUpdate(BaseModel):
     vat_enabled: Optional[bool] = None
     vat_rate: Optional[float] = Field(None, ge=0, le=100)
     vat_number: Optional[str] = Field(None, max_length=50)
+    # POS Feature Toggles
+    chef_display_enabled: Optional[bool] = None
+    auto_print_enabled: Optional[bool] = None
+    auto_print_copies: Optional[int] = Field(None, ge=1, le=10)
+    manual_card_enabled: Optional[bool] = None
     # Partner & Tier
     tier: Optional[str] = Field(None, pattern="^(basic|enterprise)$")
     billing_model: Optional[str] = Field(None, pattern="^(per_booking|monthly)$")
@@ -138,6 +148,11 @@ class RestaurantResponse(RestaurantBase):
     vat_enabled: bool = True
     vat_rate: float = 20.0
     vat_number: Optional[str] = None
+    # POS Feature Toggles
+    chef_display_enabled: bool = True
+    auto_print_enabled: bool = False
+    auto_print_copies: int = 1
+    manual_card_enabled: bool = False
     # Partner & Tier
     tier: str = "enterprise"
     billing_model: str = "per_booking"

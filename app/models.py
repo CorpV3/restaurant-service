@@ -113,6 +113,12 @@ class Restaurant(Base):
     vat_rate = Column(Float, default=20.0, nullable=False)   # percentage e.g. 20.0
     vat_number = Column(String(50), nullable=True)           # printed on receipts
 
+    # POS Feature Toggles
+    chef_display_enabled = Column(Boolean, default=True, nullable=False)   # show/hide KDS in POS
+    auto_print_enabled = Column(Boolean, default=False, nullable=False)    # auto-print on new order
+    auto_print_copies = Column(Integer, default=1, nullable=False)         # number of copies to print
+    manual_card_enabled = Column(Boolean, default=False, nullable=False)   # manual card payment (staff process on own machine)
+
     # Partner & Tier
     tier = Column(String(20), default="enterprise", nullable=False)          # basic | enterprise
     billing_model = Column(String(20), default="per_booking", nullable=False) # per_booking | monthly
@@ -487,7 +493,7 @@ class AppVersion(Base):
     __tablename__ = "app_versions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    platform = Column(String(20), nullable=False, unique=True)  # 'windows' or 'android'
+    platform = Column(String(20), nullable=False, unique=True)  # 'windows', 'android', or 'ios'
     version_string = Column(String(50), nullable=False)
     download_url = Column(String(1000), nullable=False)
     release_notes = Column(Text, nullable=True)
